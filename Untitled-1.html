@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serenity V2</title>
+    <style>
+        :root {
+            --bg-base: #0f0f0f;
+            --mood-color: #ffb84c; /* Default */
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            /* This transition makes the background "bleed" the emoji color */
+            background: radial-gradient(circle at center, var(--mood-color) -150%, var(--bg-base) 80%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background 0.8s ease;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        
+        .mood-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .mood-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 15px 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mood-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+        .mood-btn.selected {
+            border-color: var(--mood-color);
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px var(--mood-color);
+        }
+
+        .emoji { font-size: 2rem; }
+        .label { font-size: 0.7rem; color: #ccc; font-weight: bold; }
+
+        /* Action Button */
+        #checkInBtn {
+            background: var(--mood-color);
+            color: black;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1rem

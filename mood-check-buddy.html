@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Mood Check Buddy</title>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #060610;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100vw;
+    height: 100dvh;
+  }
+  canvas { display: block; touch-action: none; }
+</style>
+</head>
+<body>
+<script>
+// ══════════════════════════════════════════════════
+//  MOOD DATA
+// ══════════════════════════════════════════════════
+const MOODS = [
+  { emoji:'😊', label:'Happy',      color:0xfbbf24, hex:'#fbbf24',
+    prompt:"That smile? Totally contagious. Go light up someone's day! ☀️" },
+  { emoji:'😢', label:'Sad',        color:0x818cf8, hex:'#818cf8',
+    prompt:"It's okay to feel this. You are braver than you know. 💙" },
+  { emoji:'😡', label:'Angry',      color:0xf87171, hex:'#f87171',
+    prompt:"That fire in you is real and valid. Breathe — then conquer. 🔥" },
+  { emoji:'😰', label:'Anxious',    color:0xe879f9, hex:'#e879f9',
+    prompt:"One breath at a time. You have handled hard before. 💜" },
+  { emoji:'🤩', label:'Excited',    color:0xfb923c, hex:'#fb923c',
+    prompt:"LET'S GOOO! The world is not ready for your energy! 🚀" },
+  { emoji:'🤢', label:'Disgusted',  color:0x4ade80, hex:'#4ade80',
+    prompt:"Trust those instincts — they are protecting you. 🛡️" },
+  { emoji:'😲', label:'Surprised',  color:0x22d3ee, hex:'#22d3ee',
+    prompt:"Life threw a curveball — catch it and run! ⚡" },
+  { emoji:'😨', label:'Fearful',    color:0xa78bfa, hex:'#a78bfa',
+    prompt:"Courage is feeling this and showing up anyway. You've got this. 💫" },
+  { emoji:'😌', label:'Calm',       color:0x34d399, hex:'#34d399',
+    prompt:"This peace you have? Protect it at all costs. 🌿" },
+  { emoji:'🥰', label:'Loved',      color:0xf472b6, hex:'#f472b6',
+    prompt:"You are so deeply loved — and you deserve every bit of it. 💖" },
+  { emoji:'🤪', label:'Silly',      color:0xfacc15, hex:'#facc15',
+    prompt:"Never stop being this free. The world needs your joy! 🎉" },
+  { emoji:'😔', label:'Down',       color:0x6366f1, hex:'#6366f1',
+    prompt:"Even on your lowest days, you still showed up. That matters. 🌱" },
+  { emoji:'😤', label:'Frustrated', color:0xef4444, hex:'#ef4444',
+    prompt:"Frustration is just motivation in disguise. Channel it. 💪" },
+  { emoji:'🥳', label:'Joyful',     color:0xf59e0b, hex:'#f59e0b',
+    prompt:"PURE JOY. Soak every drop of it up and spread it around! 🎊" },
+  { emoji:'😶', label:'Numb',       color:0x94a3b8, hex:'#94a3b8',
+    prompt:"Feeling nothing is still feeling something. You are seen. 🤍" },
+];
+
+// ══════════════════════════════════════════════════
+//  STREAK HELPERS
+// ══════════════════════════════════════════════════
+function getStreak() {
+  try { return JSON.parse(localStorage.getItem('mcb') || '{"n":0,"last":""}'); }
+  catch { return { n:0, last:'' }; }
+}
+function saveCheckIn() {
+  const d = getStreak();
+  const today = new Date().toDateString();
+  const yest  = new Date(Date.now() - 86400000).toDateString();
+  const n = d.last === today ? d.n
+          : (d.last === yest || !d.last) ? d.n + 1
+          : 1;
+  localStorage.setItem('mcb', JSON.stringify({ n, last: today }));
+  return n;
+}
+function streakLabel(n) {
+  if (n === 0) return '✦  Start your streak today!';
+  if (n === 1) return '🔥  1 day streak — great start!';
+  if (n < 7)   return `🔥  ${n} day streak — keep going!`;
+  if (n < 30)  return `🔥  ${n} day streak — you're on fire!`;
+  return `🔥  ${n} day streak — LEGENDARY! 🏆`;
+}
+
+// ══════════════════════════════════════════════════
+//  TIME GREETING
+// ══════════════════════════════════════════════════
+function greeting() {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 12) return 'Good morning ☀️';
+  if (h >= 12 && h < 17) return 'Good afternoon 🌤️';
+  if (h >= 17 && h < 21) return 'Good evening 🌙';
+  return 'Late night check-in ✨';
+}
+
+// ══════════════════════════════════════════════════
+//  PHASER SCENE
+// ══════════════════════════════════════════════════
+class MoodScene extends Phaser.Scene {
+  constructor() { super('MoodScene'); }
+
+  create() {
+    const W = this.scale.width, H = this.scale.height;
+    this.W = W; this.H = H;
+    this.busy = false;
+    this.btns = [];
+
+    this.makeBg();
+    this.makeTextures();
+    this.makeAmbient();
+    this.makeUI();
+    this.makeGrid();
+    this.makeOverlays();
+  }
+
+  // ── Background & orbs ──────────────────────────
+  makeBg() {
+    const W = this.W, H = this.H;
+    this.add.rectangle(W/2, H/2, W, H, 0x060610);
+    const orbs = [
+      [0,    0,    240, 0x7c3aed, 0.11],
+      [W,    H,    210, 0x2563eb, 0.09],
+      [W*.65,H*.4, 170, 0xdb2777, 0.08],
+    ];
+    orbs.forEach(([x,y,r,c,a]) => {
+      const g = this.add.graphics();
+      g.fillStyle(c, a);
+      g.fillCircle(x, y, r);
+      this.tweens.add({
+        targets: g,
+        x: Phaser.Math.Between(-25, 25),
+        y: Phaser.Math.Between(-25, 25),
+        duration: Phaser.Math.Between(8000, 14000),
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    });
+    // Mood color wash — updated on selection
+    this.colorWash = this.add.rectangle(W/2, H/2, W, H, 0x7c3aed, 0).setDepth(1);
+  }
+
+  // ── Generate particle textures ──────────────────
+  makeTextures() {
+    const circle = this.make.graphics({x:0,y:0,add:false});
+    circle.fillStyle(0xffffff, 1);
+    circle.fillCircle(7, 7, 7);
+    circle.generateTexture('dot', 14, 14);
+    circle.destroy();
+
+    const sq = this.make.graphics({x:0,y:0,add:false});
+    sq.fillStyle(0xffffff, 1);
+    sq.fillRect(2, 2, 8, 8);
+    sq.generateTexture('sq', 12, 12);
+    sq.destroy();
+
+    const star = this.make.graphics({x:0,y:0,add:false});
+    star.fillStyle(0xffffff, 1);
+    star.fillTriangle(6,0, 12,10, 0,10);
+    star.fillTriangle(0,4, 12,4, 6,14);
+    star.generateTexture('star', 12, 14);
+    star.destroy();
+  }
+
+  // ── Ambient floating particles ──────────────────
+  makeAmbient() {
+    this.ambMgr = this.add.particles('dot').setDepth(2);
+    this.ambMgr.createEmitter({
+      x: { min:0, max:this.W },
+      y: { min:0, max:this.H },
+      speed: { min:8, max:20 },
+      angle: { min:210, max:330 },
+      scale: { start:0.28, end:0 },
+      lifespan: { min:3500, max:7000 },
+      tint: [0xa78bfa, 0x818cf8, 0x93c5fd, 0xc4b5fd],
+      frequency: 160,
+      alpha: { start:0.5, end:0 },
+    });
+  }
+
+  // ── Static UI ───────────────────────────────────
+  makeUI() {
+    const W = this.W;
+    const EF = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+    const SF = '"Segoe UI",system-ui,sans-serif';
+
+    // Logo
+    this.add.text(W/2, 26, '🌊  Mood Check Buddy', {
+      fontSize:'19px', fontStyle:'bold', fontFamily:SF, color:'#c4b5fd',
+    }).setOrigin(0.5).setDepth(3);
+
+    // Divider line
+    const div = this.add.graphics().setDepth(3);
+    div.lineStyle(1, 0x333355, 0.6);
+    div.lineBetween(30, 42, W-30, 42);
+
+    // Greeting
+    this.add.text(W/2, 56, greeting(), {
+      fontSize:'12px', fontFamily:SF, color:'#7777aa',
+    }).setOrigin(0.5).setDepth(3);
+
+    // Streak
+    this.streakTxt = this.add.text(W/2, 80, streakLabel(getStreak().n), {
+      fontSize:'13px', fontStyle:'bold', fontFamily:SF, color:'#fbbf24',
+    }).setOrigin(0.5).setDepth(3);
+
+    // Question
+    this.add.text(W/2, 104, 'How are you feeling right now?', {
+      fontSize:'11px', fontFamily:SF, color:'#55557a',
+    }).setOrigin(0.5).setDepth(3);
+
+    // Tap instruction (pulses)
+    this.tapTxt = this.add.text(W/2, this.H - 20, '✦   Tap any mood to check in   ✦', {
+      fontSize:'11px', fontFamily:SF, color:'#333360',
+    }).setOrigin(0.5).setDepth(3);
+    this.tweens.add({
+      targets: this.tapTxt,
+      alpha: { from:1, to:0.3 },
+      duration: 1800, yoyo:true, repeat:-1, ease:'Sine.easeInOut',
+    });
+  }
+
+  // ── Mood grid ────────────────────────────────────
+  makeGrid() {
+    const W = this.W;
+    const BW = 118, BH = 72, GX = 6, GY = 8, COLS = 3;
+    const gW = COLS * BW + (COLS-1) * GX;
+    const x0 = (W - gW) / 2 + BW/2;
+    const y0 = 122 + BH/2;
+
+    MOODS.forEach((m, i) => {
+      const col = i % COLS, row = Math.floor(i / COLS);
+      const cx = x0 + col * (BW + GX);
+      const cy = y0 + row * (BH + GY);
+
+      // Draw card
+      const bg = this.add.graphics().setDepth(4);
+      this.drawCard(bg, cx, cy, BW, BH, 0x0e0e20, 0.92, m.color, 0.18);
+
+      // Emoji
+      const em = this.add.text(cx, cy - 10, m.emoji, {
+        fontSize:'28px',
+        fontFamily:'"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif',
+      }).setOrigin(0.5).setDepth(5);
+
+      // Label
+      const lb = this.add.text(cx, cy + 22, m.label.toUpperCase(), {
+        fontSize:'8px', fontStyle:'bold',
+        fontFamily:'"Segoe UI",system-ui,sans-serif',
+        color:'#666688', letterSpacing:1,
+      }).setOrigin(0.5).setDepth(5);
+
+      // Hit zone
+      const zone = this.add.zone(cx, cy, BW, BH).setInteractive().setDepth(6);
+
+      zone.on('pointerover', () => {
+        if (this.busy) return;
+        this.drawCard(bg, cx, cy, BW, BH, 0x1a1a38, 0.96, m.color, 0.6);
+        this.tweens.add({ targets:[em,lb], scaleX:1.12, scaleY:1.12, duration:130, ease:'Back.easeOut' });
+      });
+      zone.on('pointerout', () => {
+        this.drawCard(bg, cx, cy, BW, BH, 0x0e0e20, 0.92, m.color, 0.18);
+        this.tweens.add({ targets:[em,lb], scaleX:1, scaleY:1, duration:130 });
+      });
+      zone.on('pointerdown', () => {
+        if (this.busy) return;
+        this.pick(m, cx, cy);
+      });
+
+      this.btns.push({ bg, em, lb, zone });
+    });
+  }
+
+  drawCard(g, cx, cy, w, h, fill, fa, stroke, sa) {
+    g.clear();
+    g.fillStyle(fill, fa);
+    g.lineStyle(1.5, stroke, sa);
+    g.fillRoundedRect(cx-w/2, cy-h/2, w, h, 12);
+    g.strokeRoundedRect(cx-w/2, cy-h/2, w, h, 12);
+  }
+
+  // ── Overlay objects (shown on pick) ────────────
+  makeOverlays() {
+    const W = this.W, H = this.H;
+
+    // Full-screen color flash
+    this.flash = this.add.rectangle(W/2, H/2, W, H, 0xffffff, 0).setDepth(20);
+
+    // Big central emoji
+    this.bigE = this.add.text(W/2, H/2 - 30, '', {
+      fontSize:'88px',
+      fontFamily:'"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif',
+    }).setOrigin(0.5).setAlpha(0).setDepth(22).setScale(0);
+
+    // Prompt card (graphics + text)
+    this.promptCard = this.add.graphics().setDepth(21).setAlpha(0);
+    this.promptTxt  = this.add.text(W/2, H * 0.78, '', {
+      fontSize:'14px',
+      fontFamily:'"Segoe UI",system-ui,sans-serif',
+      color:'#ffffff', align:'center',
+      wordWrap:{ width: W - 64 },
+      lineSpacing:5,
+    }).setOrigin(0.5).setAlpha(0).setDepth(22);
+
+    // Checked-in badge
+    this.checkedBadge = this.add.text(W/2, H * 0.62, '', {
+      fontSize:'12px', fontStyle:'bold',
+      fontFamily:'"Segoe UI",system-ui,sans-serif',
+      color:'#aaffcc',
+    }).setOrigin(0.5).setAlpha(0).setDepth(22);
+  }
+
+  // ══════════════════════════════════════════════
+  //  PICK MOOD — main interaction
+  // ══════════════════════════════════════════════
+  pick(mood, bx, by) {
+    this.busy = true;
+
+    // 1. ─ Button press squish ─────────────────
+    const btn = this.btns.find(b => {
+      const z = b.zone;
+      return Math.abs(z.x - bx) < 1 && Math.abs(z.y - by) < 1;
+    });
+    if (btn) {
+      this.tweens.add({
+        targets:[btn.em, btn.lb],
+        scaleX:0.72, scaleY:0.72,
+        duration:70, yoyo:true,
+      });
+    }
+
+    // 2. ─ Screen color flash ──────────────────
+    this.flash.setFillStyle(mood.color);
+    this.tweens.add({
+      targets: this.flash,
+      alpha:{ from:0, to:0.42 },
+      duration:110, yoyo:true,
+      onComplete: () => this.flash.setAlpha(0),
+    });
+
+    // 3. ─ Background color wash ───────────────
+    this.colorWash.setFillStyle(mood.color);
+    this.tweens.add({ targets:this.colorWash, alpha:{ from:0, to:0.08 }, duration:400 });
+
+    // 4. ─ Explosion at button ─────────────────
+    this.burst(bx, by, mood.color, 55);
+
+    // 5. ─ Fade grid out ───────────────────────
+    this.time.delayedCall(80, () => {
+      this.btns.forEach(b => {
+        this.tweens.add({ targets:[b.bg,b.em,b.lb], alpha:0, duration:260 });
+      });
+      this.tweens.add({ targets:this.tapTxt, alpha:0, duration:200 });
+    });
+
+    // 6. ─ Camera shake ────────────────────────
+    this.time.delayedCall(120, () => this.cameras.main.shake(380, 0.016));
+
+    // 7. ─ Big emoji explodes onto screen ──────
+    this.time.delayedCall(180, () => {
+      this.bigE.setText(mood.emoji).setAlpha(1).setScale(0).setY(this.H/2 - 30);
+      this.tweens.add({
+        targets: this.bigE,
+        scale:{ from:0, to:2.6 },
+        duration:580,
+        ease:'Back.easeOut',
+      });
+    });
+
+    // 8. ─ Secondary burst at center ──────────
+    this.time.delayedCall(320, () => {
+      this.burst(this.W/2, this.H/2 - 30, mood.color, 40);
+    });
+
+    // 9. ─ Settle emoji ────────────────────────
+    this.time.delayedCall(800, () => {
+      this.tweens.add({ targets:this.bigE, scale:1.9, duration:260, ease:'Power2.easeOut' });
+    });
+
+    // 10. ─ Sparkle ring effect ────────────────
+    this.time.delayedCall(250, () => this.sparkleRing(this.W/2, this.H/2 - 30, mood.color));
+
+    // 11. ─ Checked-in badge ───────────────────
+    this.time.delayedCall(500, () => {
+      const t = new Date().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+      this.checkedBadge.setText(`✓  Checked in at ${t}`).setAlpha(0);
+      this.tweens.add({ targets:this.checkedBadge, alpha:1, duration:300, ease:'Power2' });
+    });
+
+    // 12. ─ Prompt card slides in ──────────────
+    this.time.delayedCall(600, () => {
+      const W = this.W, H = this.H;
+      const py = H * 0.77;
+      const pw = W - 52, ph = 78, px = 26;
+
+      this.promptCard.clear();
+      this.promptCard.fillStyle(0x0a0a20, 0.90);
+      this.promptCard.fillRoundedRect(px, py - ph/2, pw, ph, 18);
+      this.promptCard.lineStyle(1.5, mood.color, 0.45);
+      this.promptCard.strokeRoundedRect(px, py - ph/2, pw, ph, 18);
+
+      this.promptTxt.setText(mood.prompt).setY(py + 16);
+
+      this.tweens.add({
+        targets:[this.promptCard, this.promptTxt],
+        alpha:{ from:0, to:1 },
+        duration:360,
+        ease:'Power2',
+      });
+      this.tweens.add({
+        targets: this.promptTxt,
+        y: py,
+        duration:360,
+        ease:'Power2',
+      });
+    });
+
+    // 13. ─ Update streak ──────────────────────
+    this.time.delayedCall(750, () => {
+      const n = saveCheckIn();
+      this.streakTxt.setText(streakLabel(n));
+      this.tweens.add({
+        targets: this.streakTxt,
+        scaleX:{ from:1.5, to:1 },
+        scaleY:{ from:1.5, to:1 },
+        duration:360, ease:'Back.easeOut',
+      });
+    });
+
+    // 14. ─ Third burst (celebration) ─────────
+    this.time.delayedCall(900, () => {
+      for (let i = 0; i < 3; i++) {
+        this.time.delayedCall(i * 120, () => {
+          const angle = (i / 3) * Math.PI * 2;
+          const rx = this.W/2 + Math.cos(angle) * 80;
+          const ry = this.H/2 - 30 + Math.sin(angle) * 80;
+          this.burst(rx, ry, mood.color, 18);
+        });
+      }
+    });
+
+    // 15. ─ Reset ──────────────────────────────
+    this.time.delayedCall(3600, () => {
+      this.tweens.add({
+        targets:[this.bigE, this.promptCard, this.promptTxt, this.checkedBadge, this.colorWash],
+        alpha:0,
+        duration:440,
+        onComplete: () => {
+          this.bigE.setAlpha(0).setScale(0);
+          this.promptCard.clear().setAlpha(0);
+          this.promptTxt.setAlpha(0);
+          this.checkedBadge.setAlpha(0);
+          this.colorWash.setAlpha(0);
+          this.btns.forEach(b => {
+            this.tweens.add({ targets:[b.bg,b.em,b.lb], alpha:1, duration:380 });
+          });
+          this.tweens.add({ targets:this.tapTxt, alpha:1, duration:380 });
+          this.busy = false;
+        },
+      });
+    });
+  }
+
+  // ── Particle explosion ─────────────────────────
+  burst(x, y, color, n) {
+    // Circles
+    const pm1 = this.add.particles('dot').setDepth(18);
+    const em1 = pm1.createEmitter({
+      x, y,
+      speed:{ min:90, max:500 },
+      angle:{ min:0, max:360 },
+      scale:{ start:1.8, end:0 },
+      lifespan:{ min:450, max:1000 },
+      tint:[color, 0xffffff, color],
+      gravityY:280, on:false,
+    });
+    em1.explode(n, x, y);
+
+    // Squares (confetti)
+    const pm2 = this.add.particles('sq').setDepth(18);
+    const em2 = pm2.createEmitter({
+      x, y,
+      speed:{ min:60, max:320 },
+      angle:{ min:0, max:360 },
+      scale:{ start:1.3, end:0 },
+      lifespan:{ min:350, max:750 },
+      tint:[color, 0xffffff],
+      gravityY:200, on:false,
+      rotate:{ min:0, max:360 },
+    });
+    em2.explode(Math.floor(n * 0.45), x, y);
+
+    // Stars
+    const pm3 = this.add.particles('star').setDepth(18);
+    const em3 = pm3.createEmitter({
+      x, y,
+      speed:{ min:40, max:220 },
+      angle:{ min:0, max:360 },
+      scale:{ start:1.4, end:0 },
+      lifespan:{ min:600, max:1100 },
+      tint:[0xffffff, color],
+      gravityY:150, on:false,
+    });
+    em3.explode(Math.floor(n * 0.3), x, y);
+
+    this.time.delayedCall(1200, () => { pm1.destroy(); pm2.destroy(); pm3.destroy(); });
+  }
+
+  // ── Sparkle ring around emoji ──────────────────
+  sparkleRing(cx, cy, color) {
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const r  = 70;
+      const sx = cx + Math.cos(angle) * r;
+      const sy = cy + Math.sin(angle) * r;
+      this.time.delayedCall(i * 30, () => {
+        const pm = this.add.particles('star').setDepth(16);
+        const em = pm.createEmitter({
+          x: sx, y: sy,
+          speed:{ min:20, max:80 },
+          angle:{ min:0, max:360 },
+          scale:{ start:1, end:0 },
+          lifespan:{ min:400, max:700 },
+          tint:[0xffffff, color],
+          gravityY:60, quantity:3, on:false,
+        });
+        em.explode(3, sx, sy);
+        this.time.delayedCall(800, () => pm.destroy());
+      });
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════
+//  LAUNCH PHASER
+// ══════════════════════════════════════════════════
+new Phaser.Game({
+  type: Phaser.AUTO,
+  width: 400,
+  height: 780,
+  backgroundColor: '#060610',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+  },
+  scene: MoodScene,
+});
+</script>
+</body>
+</html>
