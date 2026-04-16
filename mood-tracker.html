@@ -194,10 +194,53 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
 .rbi{flex:1;min-width:140px;}
 .rbi h4{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:2px;}
 .rbi p{font-size:11px;color:var(--mut);}
+.rbi .price-tag{
+  display:inline-flex;align-items:center;gap:5px;margin-top:6px;
+  background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);
+  border-radius:999px;padding:3px 10px;font-size:12px;font-weight:800;color:var(--gold);}
 .rbbtn{background:linear-gradient(135deg,#f59e0b,#fbbf24);border:none;border-radius:11px;
   padding:9px 16px;font-size:12px;font-weight:800;color:#1a0f00;cursor:pointer;
   transition:transform .2s,box-shadow .2s;white-space:nowrap;}
 .rbbtn:hover{transform:scale(1.05);box-shadow:0 4px 18px rgba(245,158,11,.4);}
+
+/* ── RESTORE PAY MODAL ────────────────────────── */
+.rback{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);
+  z-index:150;display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;pointer-events:none;transition:opacity .3s;}
+.rback.open{opacity:1;pointer-events:all;}
+.rmodal{background:#13132a;border:1.5px solid rgba(245,158,11,.35);border-radius:26px;
+  padding:28px 24px;max-width:360px;width:100%;position:relative;text-align:center;
+  transform:scale(.9) translateY(16px);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);}
+.rback.open .rmodal{transform:scale(1) translateY(0);}
+.rmodal-cl{position:absolute;top:14px;right:14px;background:var(--sur);
+  border:1px solid var(--bdr);border-radius:50%;width:30px;height:30px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:14px;color:var(--mut);transition:all .2s;}
+.rmodal-cl:hover{transform:rotate(90deg);}
+.streak-lost-num{font-size:52px;font-weight:900;line-height:1;
+  background:linear-gradient(135deg,#f59e0b,#fbbf24);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.price-display{
+  margin:16px auto;background:rgba(245,158,11,.1);border:2px solid rgba(245,158,11,.35);
+  border-radius:18px;padding:16px;max-width:220px;}
+.price-display .amt{font-size:42px;font-weight:900;color:var(--gold);line-height:1;}
+.price-display .amt sup{font-size:20px;vertical-align:super;}
+.price-display .why{font-size:11px;color:var(--mut);margin-top:4px;}
+.tier-pills{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+.tier-pill{background:rgba(255,255,255,.04);border:1px solid var(--bdr);
+  border-radius:999px;padding:4px 11px;font-size:10px;font-weight:600;color:var(--mut);}
+.tier-pill.active{background:rgba(245,158,11,.15);border-color:rgba(245,158,11,.4);color:var(--gold);}
+.pay-btn{width:100%;padding:14px;border:none;border-radius:13px;font-size:15px;
+  font-weight:900;cursor:pointer;color:#1a0800;
+  background:linear-gradient(135deg,#f59e0b,#fbbf24);
+  box-shadow:0 4px 24px rgba(245,158,11,.4);transition:all .2s;margin-bottom:10px;}
+.pay-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(245,158,11,.55);}
+.pay-or{font-size:11px;color:var(--mut);margin:10px 0;}
+.pay-premium-link{font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;
+  text-decoration:underline;opacity:.8;}
+.pay-premium-link:hover{opacity:1;}
+.pay-fine{font-size:10px;color:var(--mut);margin-top:8px;line-height:1.5;}
 
 /* ══════════════════════════════════════════════
    STATS SLIDER
@@ -546,14 +589,50 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
   <!-- LOG BTN -->
   <button class="lbtn fu fu3" id="logBtn" onclick="logMood()">Log My Mood ✦</button>
 
+  <!-- RESTORE PAY MODAL -->
+  <div class="rback" id="rModal">
+    <div class="rmodal">
+      <button class="rmodal-cl" onclick="closeRestoreModal()">✕</button>
+      <div style="font-size:36px;margin-bottom:6px">💔</div>
+      <h3 style="font-size:18px;font-weight:900;color:var(--gold);margin-bottom:4px">Restore Your Streak</h3>
+      <p style="font-size:12px;color:var(--mut);margin-bottom:14px;line-height:1.6">
+        You had a <strong id="rStreakNum" style="color:var(--txt)">0</strong>-day streak.<br>
+        One small payment brings it right back.
+      </p>
+
+      <div class="price-display">
+        <div class="amt"><sup>$</sup><span id="rPriceAmt">0.20</span></div>
+        <div class="why" id="rPriceWhy">one-time · instant restore</div>
+      </div>
+
+      <div class="tier-pills" id="rTierPills">
+        <div class="tier-pill" data-tier="1">1–7 days · $0.20</div>
+        <div class="tier-pill" data-tier="2">8–14 days · $0.30</div>
+        <div class="tier-pill" data-tier="3">15–21 days · $0.40</div>
+        <div class="tier-pill" data-tier="4">22+ days · $0.50</div>
+      </div>
+
+      <button class="pay-btn" id="rPayBtn" onclick="confirmRestorePay()">
+        🔥 Restore for $<span id="rPayPrice">0.20</span>
+      </button>
+
+      <div class="pay-or">— or —</div>
+      <div class="pay-premium-link" onclick="closeRestoreModal();openModal()">
+        ⭐ Get Premium for $0.99/mo — unlimited restores, always free
+      </div>
+      <div class="pay-fine">Demo mode · Click to restore instantly · No real charge</div>
+    </div>
+  </div>
+
   <!-- RESTORE BANNER -->
   <div class="rbanner" id="rbanner">
     <div style="font-size:28px">💔</div>
     <div class="rbi">
       <h4>Your streak broke!</h4>
-      <p id="rtokenLbl">You can restore it and keep going.</p>
+      <p id="rtokenLbl">Restore it and keep your momentum going.</p>
+      <div class="price-tag" id="rBannerPrice">🔥 Restore · $0.20</div>
     </div>
-    <button class="rbbtn" onclick="restoreStreak()">🔄 Restore</button>
+    <button class="rbbtn" onclick="restoreStreak()">Restore</button>
   </div>
 
   <!-- ── STATS SLIDER ── -->
@@ -915,17 +994,72 @@ function streakBroke(){
   const y=new Date();y.setDate(y.getDate()-1);
   return!days.has(dk(y))&&!days.has(dk(new Date()));
 }
+// ─── Restore price based on streak length ────────
+function restorePrice(streak){
+  if(streak<=7)  return {amt:'0.20',tier:1};
+  if(streak<=14) return {amt:'0.30',tier:2};
+  if(streak<=21) return {amt:'0.40',tier:3};
+  return           {amt:'0.50',tier:4};
+}
+
 function restoreStreak(){
-  if(!S.premium&&S.tokens<=0){openModal();return;}
+  if(S.premium){
+    // Premium → always free
+    doRestore();
+  } else {
+    // Free users → open pay modal
+    openRestoreModal();
+  }
+}
+
+function openRestoreModal(){
+  const streak = calcStreak() || S._lastStreak || 0;
+  S._lastStreak = streak;
+  const p = restorePrice(streak);
+  $('rStreakNum').textContent  = streak;
+  $('rPriceAmt').textContent   = p.amt;
+  $('rPayPrice').textContent   = p.amt;
+  $('rPayBtn').textContent     = `🔥 Restore for $${p.amt}`;
+  $('rBannerPrice').textContent= `🔥 Restore · $${p.amt}`;
+  // Highlight active tier pill
+  document.querySelectorAll('.tier-pill').forEach(el=>{
+    el.classList.toggle('active', parseInt(el.dataset.tier)===p.tier);
+  });
+  $('rModal').classList.add('open');
+}
+
+function closeRestoreModal(){
+  $('rModal').classList.remove('open');
+}
+
+function confirmRestorePay(){
+  // Simulate payment confirmation → restore
+  const btn=$('rPayBtn');
+  btn.textContent='✓ Processing…';
+  btn.style.opacity='0.7';
+  btn.style.pointerEvents='none';
+  setTimeout(()=>{
+    closeRestoreModal();
+    doRestore();
+    const p=restorePrice(S._lastStreak||0);
+    toast(`🔥 Streak restored for $${p.amt} — keep going!`);
+  },900);
+}
+
+function doRestore(){
   const y=new Date();y.setDate(y.getDate()-1);const key=dk(y);
   if(!S.entries.some(e=>dk(new Date(e.ts))===key)){
     S.entries.push({id:Date.now(),moodId:'calm',note:'[Streak restored]',ts:y.toISOString(),restored:true});
     S.entries.sort((a,b)=>new Date(b.ts)-new Date(a.ts));
-    if(!S.premium)S.tokens=Math.max(0,S.tokens-1);
-    save();toast('🔥 Streak restored! Keep going!');
-    $('rbanner').classList.remove('show');refreshHome();
+    save();
+    if(S.premium) toast('🔥 Streak restored — Premium perk!');
+    $('rbanner').classList.remove('show');
+    refreshHome();
   }
 }
+
+// Close modal on backdrop click
+$('rModal').addEventListener('click',e=>{if(e.target===$('rModal'))closeRestoreModal();});
 
 // ═════════════════════════════════════════════════
 //  STATS SLIDER
@@ -1029,10 +1163,32 @@ function buildDots(){
 // ═════════════════════════════════════════════════
 function checkBanner(){
   if(streakBroke()&&S.entries.length){
+    // Snapshot the streak before it reads as 0
+    const broken=calcBrokenStreak();
+    S._lastStreak=broken;
+    const p=restorePrice(broken);
     $('rbanner').classList.add('show');
-    $('rtokenLbl').textContent=S.premium?'Unlimited restores (Premium)':
-      `You have ${S.tokens} free restore${S.tokens!==1?'s':''} this month`;
+    if(S.premium){
+      $('rtokenLbl').textContent='Tap to restore — free with Premium ⭐';
+      $('rBannerPrice').textContent='🔥 Free — Premium perk';
+      $('rBannerPrice').style.color='#34d399';
+    } else {
+      $('rtokenLbl').textContent=`Your ${broken}-day streak can be saved.`;
+      $('rBannerPrice').textContent=`🔥 Restore · $${p.amt}`;
+      $('rBannerPrice').style.color='';
+    }
   }else{$('rbanner').classList.remove('show');}
+}
+
+// Returns how long the broken streak WAS before it broke
+function calcBrokenStreak(){
+  if(!S.entries.length)return 0;
+  // Look back from yesterday and count consecutive days
+  const logged=new Set(S.entries.map(e=>dk(new Date(e.ts))));
+  let n=0,cur=new Date();
+  cur.setDate(cur.getDate()-1); // start from yesterday
+  while(logged.has(dk(cur))){n++;cur.setDate(cur.getDate()-1);}
+  return n;
 }
 
 // ═════════════════════════════════════════════════
