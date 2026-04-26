@@ -702,6 +702,32 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
 /* nav punch glow */
 #nb-punch.active{color:#ff6680;}
 #nb-punch.active .ni{filter:drop-shadow(0 0 6px #ff4466);}
+
+/* ── LANGUAGE PICKER ───────────────────────── */
+.lang-wrap{position:relative;}
+.lang-btn{
+  display:flex;align-items:center;gap:5px;
+  background:var(--sur);border:1.5px solid var(--bdr);border-radius:999px;
+  padding:6px 11px;font-size:13px;font-weight:700;cursor:pointer;
+  color:var(--mut);transition:all .2s;white-space:nowrap;user-select:none;}
+.lang-btn:hover{background:var(--sur2);color:var(--txt);}
+.lang-btn .lang-flag{font-size:16px;}
+.lang-drop{
+  position:absolute;top:calc(100% + 8px);right:0;
+  background:rgba(14,14,32,.97);border:1.5px solid var(--bdr);
+  border-radius:16px;padding:8px;min-width:160px;z-index:500;
+  backdrop-filter:blur(20px);box-shadow:0 12px 40px rgba(0,0,0,.5);
+  display:none;flex-direction:column;gap:2px;
+  animation:fu .22s ease both;}
+.lang-drop.open{display:flex;}
+.lang-opt{
+  display:flex;align-items:center;gap:9px;padding:9px 12px;
+  border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;
+  color:var(--mut);transition:all .18s;}
+.lang-opt:hover{background:var(--sur2);color:var(--txt);}
+.lang-opt.active{background:rgba(157,110,255,.15);color:#d8b4fe;
+  border:1px solid rgba(157,110,255,.25);}
+.lang-opt .lf{font-size:18px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -753,13 +779,20 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
   <header class="hdr fu">
     <div class="logo">
       <div class="li">🌊</div>
-      <div class="lt"><h1>MoodFlow</h1><span>Your daily companion</span></div>
+      <div class="lt"><h1>MoodFlow</h1><span id="ltSub">Your daily companion</span></div>
     </div>
     <div class="hdr-r">
       <div class="spill">
         <span class="flame">🔥</span>
         <span id="sCount">0</span>
-        <span style="font-weight:500;color:rgba(251,191,36,.6)">day streak</span>
+        <span id="streakLbl" style="font-weight:500;color:rgba(251,191,36,.6)">day streak</span>
+      </div>
+      <div class="lang-wrap">
+        <div class="lang-btn" id="langBtn" onclick="toggleLangDrop()">
+          <span class="lang-flag" id="langFlag">🌐</span>
+          <span id="langCode">EN</span>
+        </div>
+        <div class="lang-drop" id="langDrop"></div>
       </div>
       <div class="pbadge" id="pbadge" onclick="openModal()">
         ⭐ <span id="plabel">Premium</span>
@@ -769,18 +802,18 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
 
   <section class="hero fu fu1">
     <h2 id="greeting">How are you feeling?</h2>
-    <p>A quick check-in now, a better you tomorrow.</p>
+    <p id="heroSub">A quick check-in now, a better you tomorrow.</p>
     <div class="chips">
-      <div class="chip">🧠 <b>Science-backed</b></div>
-      <div class="chip">📈 <b>Track patterns</b></div>
-      <div class="chip">🔒 <b>100% private</b></div>
+      <div class="chip">🧠 <b id="chip1">Science-backed</b></div>
+      <div class="chip">📈 <b id="chip2">Track patterns</b></div>
+      <div class="chip">🔒 <b id="chip3">100% private</b></div>
     </div>
     <div class="dchip" id="dateLbl"></div>
   </section>
 
   <!-- MOOD GRID -->
   <section class="fu fu2">
-    <div class="stitle">✦ Pick your mood <span></span></div>
+    <div class="stitle" id="pickMoodLbl">✦ Pick your mood <span></span></div>
     <div class="mgrid" id="moodGrid"></div>
   </section>
 
@@ -796,7 +829,7 @@ canvas#ptc{position:fixed;inset:0;z-index:0;pointer-events:none;}
   <!-- NOTE -->
   <div class="nwrap fu fu3">
     <textarea id="noteIn" placeholder="What's on your mind? (optional)" maxlength="200"></textarea>
-    <div class="nft"><span>💬 Add a note</span><span id="charCt">0 / 200</span></div>
+    <div class="nft"><span id="noteLbl">💬 Add a note</span><span id="charCt">0 / 200</span></div>
   </div>
 
   <!-- LOG BTN -->
@@ -1671,13 +1704,210 @@ function refreshHome(){buildSlider();checkBanner();}
 // ═════════════════════════════════════════════════
 //  GREETING / DATE
 // ═════════════════════════════════════════════════
+// ═════════════════════════════════════════════════
+//  LANGUAGES
+// ═════════════════════════════════════════════════
+const LANGS={
+  en:{flag:'🇺🇸',code:'EN',name:'English',
+    sub:'Your daily companion',heroSub:'A quick check-in now, a better you tomorrow.',
+    chip1:'Science-backed',chip2:'Track patterns',chip3:'100% private',
+    pickMood:'✦ Pick your mood',notePh:"What's on your mind? (optional)",
+    noteLbl:'💬 Add a note',logBtn:'Log My Mood ✦',streakLbl:'day streak',
+    statsLbl:'📊 Your Stats',navHome:'Home',navHist:'History',navPunch:'Punch',
+    histTitle:'History',clearAll:'🗑 Clear All',
+    tabE:'📝 Entries',tabD:'🗑 Deleted',calLbl:'📅 Calendar',
+    streakCard:'🔥 Current Streak',overCard:'✦ Overview',mixCard:'🎨 Mood Mix',
+    last7:'📅 Last 7 Days',bestCard:'🏆 Personal Bests',
+    totLogs:'Total Logs',topMood:'Top Mood',daysAct:'Days Active',
+    avgW:'Avg / Week',bestSt:'Best Streak',realE:'Real Entries',mostD:'Most in a Day',
+    days:'days',premLbl:'Premium',premActive:'Active',
+    stBroke:'Your streak broke!',stMsg:'Restore it and keep your momentum going.',restoreBtn:'Restore',
+    mg:['Good morning ☀️','Rise and shine 🌤️','Morning check-in 🌸'],
+    ag:["Good afternoon 🌿","How's your day? 💛",'Afternoon pause 🍃'],
+    eg:['Good evening 🌙','Evening reflection ✨','How did today feel? 🌠'],
+    locale:'en-US',
+    pmTitle:'👊 PUNCH MADNESS',pmSub:"Made for when you're mad 😤",
+    punches:'punches',pmTip:'tap the bag · release the rage',
+    shopBtn:'🛒 Bag Shop',shopTitle:'🛒 Bag Shop',shopSub:'Spend punches on tougher gear',
+    pmBroke:'is shredded. New one incoming...'},
+  ja:{flag:'🇯🇵',code:'JP',name:'日本語',
+    sub:'あなたの毎日の相棒',heroSub:'今すぐチェックイン — 明日の自分へ。',
+    chip1:'科学に基づく',chip2:'パターン追跡',chip3:'完全プライベート',
+    pickMood:'✦ 気分を選んで',notePh:'今何を考えていますか？（任意）',
+    noteLbl:'💬 メモを追加',logBtn:'気分を記録 ✦',streakLbl:'日連続',
+    statsLbl:'📊 あなたの統計',navHome:'ホーム',navHist:'履歴',navPunch:'パンチ',
+    histTitle:'履歴',clearAll:'🗑 全削除',
+    tabE:'📝 記録',tabD:'🗑 削除済み',calLbl:'📅 カレンダー',
+    streakCard:'🔥 連続記録',overCard:'✦ 概要',mixCard:'🎨 気分分布',
+    last7:'📅 過去7日間',bestCard:'🏆 自己ベスト',
+    totLogs:'合計記録',topMood:'トップ気分',daysAct:'活動日数',
+    avgW:'週平均',bestSt:'最長連続',realE:'実記録数',mostD:'1日最多',
+    days:'日',premLbl:'プレミアム',premActive:'有効',
+    stBroke:'連続記録が途切れた！',stMsg:'復元して勢いを保とう。',restoreBtn:'復元',
+    mg:['おはようございます ☀️','輝く朝です 🌤️','朝のチェックイン 🌸'],
+    ag:['こんにちは 🌿','今日はどうですか？ 💛','午後の一息 🍃'],
+    eg:['こんばんは 🌙','夜の振り返り ✨','今日はどうでしたか？ 🌠'],
+    locale:'ja-JP',
+    pmTitle:'👊 パンチ狂乱',pmSub:'怒ったときのために 😤',
+    punches:'パンチ',pmTip:'バッグをタップ・ストレス発散',
+    shopBtn:'🛒 ショップ',shopTitle:'🛒 バッグショップ',shopSub:'パンチで強化しよう',
+    pmBroke:'が破壊されました。新品が来ます...'},
+  zh:{flag:'🇨🇳',code:'ZH',name:'中文',
+    sub:'你的每日伙伴',heroSub:'现在签到，明天更好的你。',
+    chip1:'科学支持',chip2:'追踪规律',chip3:'完全私密',
+    pickMood:'✦ 选择心情',notePh:'你在想什么？（可选）',
+    noteLbl:'💬 添加备注',logBtn:'记录心情 ✦',streakLbl:'天连续',
+    statsLbl:'📊 你的统计',navHome:'主页',navHist:'历史',navPunch:'发泄',
+    histTitle:'历史记录',clearAll:'🗑 全部清除',
+    tabE:'📝 记录',tabD:'🗑 已删除',calLbl:'📅 日历',
+    streakCard:'🔥 当前连续',overCard:'✦ 概览',mixCard:'🎨 心情分布',
+    last7:'📅 近7天',bestCard:'🏆 个人最佳',
+    totLogs:'总记录',topMood:'最多心情',daysAct:'活跃天数',
+    avgW:'每周平均',bestSt:'最长连续',realE:'真实记录',mostD:'单日最多',
+    days:'天',premLbl:'高级版',premActive:'已激活',
+    stBroke:'连续记录中断了！',stMsg:'恢复它，保持动力。',restoreBtn:'恢复',
+    mg:['早上好 ☀️','美好的早晨 🌤️','晨间签到 🌸'],
+    ag:['下午好 🌿','今天怎么样？ 💛','午后休息 🍃'],
+    eg:['晚上好 🌙','夜间反思 ✨','今天感觉如何？ 🌠'],
+    locale:'zh-CN',
+    pmTitle:'👊 发泄狂潮',pmSub:'生气时就来这里 😤',
+    punches:'拳',pmTip:'点击沙袋 · 释放怒气',
+    shopBtn:'🛒 商店',shopTitle:'🛒 沙袋商店',shopSub:'用拳数升级装备',
+    pmBroke:'已损毁。新的来了...'},
+  fr:{flag:'🇫🇷',code:'FR',name:'Français',
+    sub:'Votre compagnon quotidien',heroSub:"Un check-in rapide aujourd'hui, un meilleur vous demain.",
+    chip1:'Basé sur la science',chip2:'Suivre les tendances',chip3:'100% privé',
+    pickMood:'✦ Choisissez votre humeur',notePh:"Qu'avez-vous en tête ? (optionnel)",
+    noteLbl:'💬 Ajouter une note',logBtn:'Enregistrer mon humeur ✦',streakLbl:'jours de suite',
+    statsLbl:'📊 Vos statistiques',navHome:'Accueil',navHist:'Historique',navPunch:'Frappe',
+    histTitle:'Historique',clearAll:'🗑 Tout effacer',
+    tabE:'📝 Entrées',tabD:'🗑 Supprimés',calLbl:'📅 Calendrier',
+    streakCard:'🔥 Série actuelle',overCard:'✦ Aperçu',mixCard:"🎨 Mix d'humeurs",
+    last7:'📅 7 derniers jours',bestCard:'🏆 Meilleurs résultats',
+    totLogs:'Total',topMood:'Humeur principale',daysAct:'Jours actifs',
+    avgW:'Moy. / semaine',bestSt:'Meilleure série',realE:'Vraies entrées',mostD:'Max par jour',
+    days:'jours',premLbl:'Premium',premActive:'Actif',
+    stBroke:'Votre série est brisée !',stMsg:'Restaurez-la et gardez votre élan.',restoreBtn:'Restaurer',
+    mg:['Bonjour ☀️','Beau réveil 🌤️','Check-in matinal 🌸'],
+    ag:["Bon après-midi 🌿","Comment va votre journée ? 💛","Pause de l'après-midi 🍃"],
+    eg:['Bonsoir 🌙','Réflexion du soir ✨','Comment s\'est passée votre journée ? 🌠'],
+    locale:'fr-FR',
+    pmTitle:'👊 FRAPPE TOTALE',pmSub:'Fait pour quand vous êtes en colère 😤',
+    punches:'frappes',pmTip:'tapez le sac · libérez la rage',
+    shopBtn:'🛒 Boutique',shopTitle:'🛒 Boutique de sacs',shopSub:'Dépensez vos frappes pour de meilleurs équipements',
+    pmBroke:'est détruit. Un nouveau arrive...'},
+  es:{flag:'🇪🇸',code:'ES',name:'Español',
+    sub:'Tu compañero diario',heroSub:'Un check-in rápido ahora, un mejor tú mañana.',
+    chip1:'Basado en ciencia',chip2:'Rastrear patrones',chip3:'100% privado',
+    pickMood:'✦ Elige tu estado de ánimo',notePh:'¿Qué tienes en mente? (opcional)',
+    noteLbl:'💬 Agregar una nota',logBtn:'Registrar mi ánimo ✦',streakLbl:'días seguidos',
+    statsLbl:'📊 Tus estadísticas',navHome:'Inicio',navHist:'Historial',navPunch:'Golpe',
+    histTitle:'Historial',clearAll:'🗑 Borrar todo',
+    tabE:'📝 Entradas',tabD:'🗑 Eliminados',calLbl:'📅 Calendario',
+    streakCard:'🔥 Racha actual',overCard:'✦ Resumen',mixCard:'🎨 Mezcla de ánimos',
+    last7:'📅 Últimos 7 días',bestCard:'🏆 Mejores marcas',
+    totLogs:'Total registros',topMood:'Ánimo principal',daysAct:'Días activos',
+    avgW:'Prom. / semana',bestSt:'Mejor racha',realE:'Entradas reales',mostD:'Más en un día',
+    days:'días',premLbl:'Premium',premActive:'Activo',
+    stBroke:'¡Tu racha se rompió!',stMsg:'Restáurala y mantén tu impulso.',restoreBtn:'Restaurar',
+    mg:['Buenos días ☀️','¡A brillar! 🌤️','Check-in matutino 🌸'],
+    ag:['Buenas tardes 🌿','¿Cómo va tu día? 💛','Pausa de tarde 🍃'],
+    eg:['Buenas noches 🌙','Reflexión nocturna ✨','¿Cómo te fue hoy? 🌠'],
+    locale:'es-ES',
+    pmTitle:'👊 GOLPE TOTAL',pmSub:'Hecho para cuando estás enojado 😤',
+    punches:'golpes',pmTip:'toca el saco · libera la rabia',
+    shopBtn:'🛒 Tienda',shopTitle:'🛒 Tienda de sacos',shopSub:'Gasta golpes en mejor equipo',
+    pmBroke:'está destruido. Llega uno nuevo...'},
+};
+
+let currentLang=localStorage.getItem('mf_lang')||'en';
+function L(){return LANGS[currentLang]||LANGS.en;}
+
+function setLang(code){
+  currentLang=code;
+  localStorage.setItem('mf_lang',code);
+  closeLangDrop();
+  applyLang();
+  setGreeting();
+}
+
+function applyLang(){
+  const l=L();
+  // header
+  $('ltSub').textContent=l.sub;
+  $('langFlag').textContent=l.flag;
+  $('langCode').textContent=l.code;
+  // hero
+  $('heroSub').textContent=l.heroSub;
+  $('chip1').textContent=l.chip1;
+  $('chip2').textContent=l.chip2;
+  $('chip3').textContent=l.chip3;
+  $('pickMoodLbl').innerHTML=l.pickMood+' <span></span>';
+  // note + log
+  $('noteIn').placeholder=l.notePh;
+  $('noteLbl').textContent=l.noteLbl;
+  const lb=$('logBtn');
+  if(!lb.classList.contains('ok'))lb.textContent=l.logBtn;
+  // streak label
+  $('streakLbl').textContent=l.streakLbl;
+  // premium badge
+  $('plabel').textContent=S.premium?l.premActive:l.premLbl;
+  // restore banner
+  const rh=document.querySelector('.rbi h4');
+  if(rh)rh.textContent=l.stBroke;
+  const rtl=$('rtokenLbl');
+  if(rtl)rtl.textContent=l.stMsg;
+  const rb=document.querySelector('.rbbtn');
+  if(rb)rb.textContent=l.restoreBtn;
+  // nav labels
+  $('nb-home').innerHTML=`<span class="ni">🏠</span>${l.navHome}`;
+  $('nb-hist').innerHTML=`<span class="ni">📅</span>${l.navHist}`;
+  $('nb-punch').innerHTML=`<span class="ni">👊</span>${l.navPunch}`;
+  // history page
+  const hh=document.querySelector('.hist-hdr h2');
+  if(hh)hh.textContent=l.histTitle;
+  const da=$('delAllBtn');
+  if(da)da.textContent=l.clearAll;
+  // punch page
+  const pt=document.querySelector('.pm-title-block h2');
+  if(pt)pt.textContent=l.pmTitle;
+  const ps=document.querySelector('.pm-title-block p');
+  if(ps)ps.textContent=l.pmSub;
+  const pcl=document.querySelector('.pm-count-lbl');
+  if(pcl)pcl.textContent=l.punches;
+  const ptt=document.querySelector('.pm-tip');
+  if(ptt)ptt.textContent=l.pmTip;
+  const psb=document.querySelector('.pm-shop-btn');
+  if(psb)psb.innerHTML=l.shopBtn+' <span style="opacity:.5;font-size:11px">· '+l.shopSub.split('·')[0].trim().toLowerCase()+'</span>';
+  // rebuild lang dropdown options
+  buildLangDrop();
+}
+
+function buildLangDrop(){
+  const drop=$('langDrop');drop.innerHTML='';
+  Object.entries(LANGS).forEach(([code,lang])=>{
+    const opt=document.createElement('div');
+    opt.className='lang-opt'+(code===currentLang?' active':'');
+    opt.innerHTML=`<span class="lf">${lang.flag}</span><span>${lang.name}</span>`;
+    opt.onclick=()=>setLang(code);
+    drop.appendChild(opt);
+  });
+}
+
+function toggleLangDrop(){
+  buildLangDrop();
+  $('langDrop').classList.toggle('open');
+}
+function closeLangDrop(){$('langDrop').classList.remove('open');}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.lang-wrap'))closeLangDrop();
+});
+
 function setGreeting(){
-  const h=new Date().getHours();
-  const g=h<12?['Good morning ☀️','Rise and shine 🌤️','Morning check-in 🌸']
-    :h<17?['Good afternoon 🌿','How\'s your day? 💛','Afternoon pause 🍃']
-    :['Good evening 🌙','Evening reflection ✨','How did today feel? 🌠'];
+  const l=L(),h=new Date().getHours();
+  const g=h<12?l.mg:h<17?l.ag:l.eg;
   $('greeting').textContent=g[Math.floor(Math.random()*g.length)];
-  $('dateLbl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  $('dateLbl').textContent=new Date().toLocaleDateString(l.locale,{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 }
 
 // ═════════════════════════════════════════════════
@@ -1696,6 +1926,7 @@ $('noteIn').addEventListener('input',function(){
 // ═════════════════════════════════════════════════
 //  BOOT
 // ═════════════════════════════════════════════════
+applyLang();
 setGreeting();
 buildGrid();
 applyPremiumUI();
